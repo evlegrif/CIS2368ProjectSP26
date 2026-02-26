@@ -251,4 +251,4 @@ INSERT INTO member (firstname, lastname, details, title, level) VALUES
 INSERT INTO event (name, capacity, level, date) VALUES
 ('Morning Yoga Session', 25, 'Bronze', '2026-03-01'),
 ('Leadership Workshop', 40, 'Silver', '2026-03-05'),
-('Executive Strategy Meeting', 15, 'Gold', '2026-03-10');
+('Executive Strategy Meeting', 15, 'Gold', '2026-03-10'); 
