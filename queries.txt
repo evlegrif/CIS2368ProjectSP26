@@ -1,0 +1,254 @@
+MySQL code for project
+
+CREATE TABLE IF NOT EXISTS member (
+    id INT AUTO_INCREMENT,
+    firstname VARCHAR(50) NOT NULL,
+    lastname VARCHAR(50) NOT NULL,
+    details VARCHAR(255),
+    title VARCHAR(255),
+    level VARCHAR(50) NOT NULL, (WILL CHANGE)
+    PRIMARY KEY (id)
+);
+
+
+CREATE TABLE IF NOT EXISTS event (
+    id INT AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    capacity INT NOT NULL,
+    level VARCHAR(50) NOT NULL,
+    date DATE NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE (date)  -- no two events on the same date
+);
+
+CREATE TABLE IF NOT EXISTS registration (
+    id INT AUTO_INCREMENT,
+    event_id INT NOT NULL,
+    member_id INT NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE (event_id, member_id),  -- cannot register twice
+    FOREIGN KEY (event_id) REFERENCES event(id),
+    FOREIGN KEY (member_id) REFERENCES member(id)
+);
+
+ALTER TABLE registration AUTO_INCREMENT = 1;
+
+POSTMAN to add a member input:
+
+{      "firstname": "Danny",
+        "lastname": "Contreras",
+        "details": "Prefers Mornings",
+        "title": "Vice-President",
+        "level": "Gold"
+}
+
+
+POSTMAN to update a member input:
+id MUST BE GIVEN - other fields are option. system will use previous data
+
+{   
+    "id": 1, 
+    "level": "Silver" (Optional)  
+}
+
+POSTMAND to Delete a member input
+{   
+    "id": 1,  
+}
+
+POSTMAN to add a event input:
+{      
+    "name": "UH Lunch Event",
+    "capacity": 10,
+    "level": "Silver",
+    "date": "2026-03-15"
+}
+
+POSTMAN to update a member input:
+id MUST BE GIVEN - other fields are option. system will use previous data
+
+{   
+    "id": 2, 
+    "name": "UH Breakfast Event",
+    "date": "2026-03-01"  
+}
+
+POSTMAND to Delete a event input
+{   
+    "id": 1,  
+}
+
+POSTMAN to add a registration input:
+
+{      
+	"event_id": 3,
+        "member_id": 1
+}
+
+
+
+
+
+
+
+This has not been used ******
+--------------------------------------------------------------------------------------
+Second option
+
+level ENUM('Bronze', 'Silver', 'Gold') NOT NULL
+
+CREATE TABLE member (
+    id INT AUTO_INCREMENT,
+    firstname VARCHAR(50) NOT NULL,
+    lastname VARCHAR(50) NOT NULL,
+    details VARCHAR(255),
+    title VARCHAR(255),
+    level ENUM('Bronze', 'Silver', 'Gold') NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE event (
+    id INT AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    capacity INT NOT NULL,
+    level ENUM('Bronze', 'Silver', 'Gold') NOT NULL,
+    date DATE NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE (date)
+);
+
+CREATE TABLE IF NOT EXISTS registration (
+    id INT AUTO_INCREMENT,
+    event_id INT NOT NULL,
+    member_id INT NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE (event_id, member_id),  -- cannot register twice
+    FOREIGN KEY (event_id) REFERENCES event(id),
+    FOREIGN KEY (member_id) REFERENCES member(id)
+);
+
+----------------------------------------------------------------------------------------
+Third option
+
+CREATE TABLE level (
+    id INT AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    rank INT NOT NULL,   -- Bronze = 1, Silver = 2, Gold = 3
+    PRIMARY KEY (id),
+    UNIQUE (name),
+    UNIQUE (rank)
+);
+
+INSERT INTO level (name, rank) VALUES
+('Bronze', 1),
+('Silver', 2),
+('Gold', 3);
+
+CREATE TABLE member (
+    id INT AUTO_INCREMENT,
+    firstname VARCHAR(50) NOT NULL,
+    lastname VARCHAR(50) NOT NULL,
+    details VARCHAR(255),
+    title VARCHAR(255),
+    level_id INT NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY (level_id) REFERENCES level(id)
+);
+
+CREATE TABLE event (
+    id INT AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    capacity INT NOT NULL,
+    level_id INT NOT NULL,
+    date DATE NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE (date),  -- no two events on the same date
+    FOREIGN KEY (level_id) REFERENCES level(id)
+);
+
+
+CREATE TABLE registration (
+    id INT AUTO_INCREMENT,
+    event_id INT NOT NULL,
+    member_id INT NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE (event_id, member_id),  -- cannot register twice
+    FOREIGN KEY (event_id) REFERENCES event(id),
+    FOREIGN KEY (member_id) REFERENCES member(id)
+);
+
+***************************************************************************
+-- TRIGGER: ENFORCE LEVEL RULE
+CREATE TRIGGER check_level_rule
+BEFORE INSERT ON registration
+FOR EACH ROW
+BEGIN
+    DECLARE member_rank INT;
+    DECLARE event_rank INT;
+
+    SELECT l.rank INTO member_rank
+    FROM member m
+    JOIN level l ON m.level_id = l.id
+    WHERE m.id = NEW.member_id;
+
+    SELECT l.rank INTO event_rank
+    FROM event e
+    JOIN level l ON e.level_id = l.id
+    WHERE e.id = NEW.event_id;
+
+    IF member_rank < event_rank THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Member level is too low for this event.';
+    END IF;
+END;
+
+-- TRIGGER: ENFORCE CAPACITY RULE
+CREATE TRIGGER check_capacity_rule
+BEFORE INSERT ON registration
+FOR EACH ROW
+BEGIN
+    DECLARE current_count INT;
+    DECLARE max_capacity INT;
+
+    SELECT COUNT(*) INTO current_count
+    FROM registration
+    WHERE event_id = NEW.event_id;
+
+    SELECT capacity INTO max_capacity
+    FROM event
+    WHERE id = NEW.event_id;
+
+    IF current_count >= max_capacity THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Event is already at full capacity.';
+    END IF;
+END;
+
+------------------- RANDOM DATA -----------------------
+
+INSERT INTO member (firstname, lastname, details, title, level) VALUES
+('Danny', 'Contreras', 'Prefers mornings', 'Vice-President', 'Gold'),
+('Brian', 'Escobar', 'Works well under pressure', 'Manager', 'Silver'),
+('Maria', 'Lopez', 'Excellent communication skills', 'Team Lead', 'Gold'),
+('James', 'Hernandez', 'Strong technical background', 'Engineer', 'Bronze'),
+('Sophia', 'Martinez', 'Great with customers', 'Support Specialist', 'Silver'),
+('Ethan', 'Nguyen', 'Fast learner', 'Intern', 'Bronze'),
+('Olivia', 'Ramirez', 'Detail-oriented', 'Coordinator', 'Silver'),
+('Liam', 'Gonzalez', 'Prefers remote work', 'Developer', 'Gold'),
+('Ava', 'Sanchez', 'Creative problem solver', 'Designer', 'Silver'),
+('Noah', 'Torres', 'Strong leadership skills', 'Supervisor', 'Gold'),
+('Isabella', 'Flores', 'Organized and efficient', 'Administrator', 'Bronze'),
+('Mason', 'Rivera', 'Great multitasker', 'Assistant Manager', 'Silver'),
+('Mia', 'Perez', 'Excellent time management', 'Scheduler', 'Bronze'),
+('Logan', 'Diaz', 'Team player', 'Technician', 'Silver'),
+('Emma', 'Reyes', 'Strong presentation skills', 'Consultant', 'Gold'),
+('Lucas', 'Morales', 'Prefers evening shifts', 'Analyst', 'Bronze'),
+('Charlotte', 'Ortiz', 'Great with documentation', 'Clerk', 'Silver'),
+('Jacob', 'Gutierrez', 'High attention to detail', 'Quality Inspector', 'Gold'),
+('Amelia', 'Ramos', 'Strong customer focus', 'Receptionist', 'Bronze'),
+('Elijah', 'Castillo', 'Excellent problem-solving', 'IT Support', 'Silver');
+
+INSERT INTO event (name, capacity, level, date) VALUES
+('Morning Yoga Session', 25, 'Bronze', '2026-03-01'),
+('Leadership Workshop', 40, 'Silver', '2026-03-05'),
+('Executive Strategy Meeting', 15, 'Gold', '2026-03-10');
